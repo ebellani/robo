@@ -8,10 +8,10 @@
 (check-equal? (constrói-robo "10 9 E")
               (make-robo 10 9 #\E))
 
-;(display (imprime-tabuleiro (constrói-tabuleiro 5 5)
-;                            (make-robo 4 4 #\N)))
-;
-;(display (imprime-tabuleiro (constrói-tabuleiro 10 10)
+(display (imprime-tabuleiro (make-tabuleiro 10 10)
+                            (make-robo 4 4 #\N)))
+
+;(display (imprime-tabuleiro (make-tabuleiro 10 10)
 ;                            (make-robo 9 9 #\E)))
 
 
@@ -36,6 +36,12 @@
  (check-equal? (passo-a-frente (make-robo 1 2 #\E))
                (make-robo 2 2 #\E))
  (check-equal? (passo-a-frente (make-robo 3 6 #\W))
-               (make-robo 2 6 #\W)))
+               (make-robo 2 6 #\W))
 
-(display (ler-movimentos-do-robo (open-input-file "./robo.txt")))
+ ;; movimentos de um arquivo
+ (check-equal? (ler-movimentos-do-robo
+                (open-input-file "./robo-movimentos-1.txt"))
+               (make-robo 0 0 #\S))
+ (check-equal? (ler-movimentos-do-robo
+                (open-input-file "./robo-movimentos-2.txt"))
+               (make-robo 1 1 #\N)))

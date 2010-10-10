@@ -94,7 +94,7 @@ Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
 
 ;; imprime-tabuleiro : tabuleiro robo -> string
 ;; imprime uma versão textual do tabuleiro, com o robo
-;; sendo representado por uma seta. 
+;; sendo representado pela letra indicando sua direção. 
 (define (imprime-tabuleiro o-tabuleiro o-robo)
   (let ([uma-linha (apply string-append
                           (for/list ([i (in-range (tabuleiro-x o-tabuleiro))])
@@ -149,12 +149,6 @@ Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
                                       o-robo
                                       linha-de-comandos)
                                      o-tabuleiro)])))))
-
-
-;(ler-movimentos-do-robo (open-input-file
-;                         (vector-ref (current-command-line-arguments)
-;                                     0)))
-
 (provide constrói-tabuleiro
          constrói-robo
          imprime-tabuleiro
