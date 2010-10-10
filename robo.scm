@@ -26,33 +26,41 @@ onde ele está apontando, por exemplo:
 Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
 |#
 
+(require srfi/13)
+
 ;; tabuleiro é uma estrutura contendo um par de inteiros
 (define-struct tabuleiro (x y) #:transparent)
 
 ;; robo é uma estrutura contendo um par de inteiros e uma direção
 (define-struct robo (x y direção) #:transparent)
 
-;; constrói-tabuleiro : number number -> tabuleiro
-(define (constrói-tabuleiro x y)
-  (make-tabuleiro x y))
+;; constrói-tabuleiro : string -> tabuleiro
+(define (constrói-tabuleiro dados)
+  (let ([dados-do-tabuleiro (string-tokenize dados)])
+    (make-tabuleiro (string->number (first dados-do-tabuleiro))
+                    (string->number (second dados-do-tabuleiro)))))
 
-;; constrói-tabuleiro : number number symbol -> tabuleiro
-(define (constrói-robo x y direção)
-  (make-robo x y direção))
+;; constrói-tabuleiro : string -> tabuleiro
+(define (constrói-robo dados)
+  (let ([dados-do-robo (string-tokenize dados)])
+    (make-robo (string->number (first dados-do-robo))
+               (string->number (second dados-do-robo))
+               (string-ref (third dados-do-robo) 0))))
+
 
 (define DIREÇÕES-POSSIVEIS
-  (list '(N (W E))
-        '(W (S N))
-        '(S (E W))
-        '(E (N S))))
+  (list '(#\N (#\W #\E))
+        '(#\W (#\S #\N))
+        '(#\S (#\E #\W))
+        '(#\E (#\N #\S))))
 
 (define RESULTADO-DO-PASSO-A-FRENTE
-  (list (list 'N (list #f add1))
-        (list 'W (list sub1 #f))
-        (list 'S (list #f sub1))
-        (list 'E (list add1 #f))))
+  (list (list #\N (list (λ (n) n) add1))
+        (list #\W (list sub1 (λ (n) n)))
+        (list #\S (list (λ (n) n) sub1))
+        (list #\E (list add1 (λ (n) n)))))
 
-;; muda-direção : robo symbol -> robo
+;; muda-direção : robo char -> robo
 (define (muda-direção o-robo virar-para)
   (let ([possíveis-direções
          (second (findf (λ (uma-possibilidade)
@@ -61,7 +69,7 @@ Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
                         DIREÇÕES-POSSIVEIS))])
     (struct-copy robo
                  o-robo
-                 (direção (if (equal? virar-para 'L)
+                 (direção (if (equal? virar-para #\L)
                               (first possíveis-direções)
                               (second possíveis-direções))))))
 
@@ -75,20 +83,14 @@ Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
 
 ;; passo-a-frente : robo -> robo
 (define (passo-a-frente o-robo)
-  (local [(define (quantidade-do-movimento função numero)
-            (if (not (false? função))
-                (função numero)
-                numero))]
-    (let ([possíveis-funções
-           (second (findf (λ (um-resultado-de-uma-posição)
-                            (equal? (first um-resultado-de-uma-posição)
-                                    (robo-direção o-robo)))
-                          RESULTADO-DO-PASSO-A-FRENTE))])
-      (muda-posição o-robo
-                    (quantidade-do-movimento (first possíveis-funções)
-                                             (robo-x o-robo))
-                    (quantidade-do-movimento (second possíveis-funções)
-                                             (robo-y o-robo))))))
+  (let ([possíveis-funções
+         (second (findf (λ (um-resultado-de-uma-posição)
+                          (equal? (first um-resultado-de-uma-posição)
+                                  (robo-direção o-robo)))
+                        RESULTADO-DO-PASSO-A-FRENTE))])
+    (muda-posição o-robo
+                  ((first possíveis-funções) (robo-x o-robo))
+                  ((second possíveis-funções) (robo-y o-robo)))))
 
 ;; imprime-tabuleiro : tabuleiro robo -> string
 ;; imprime uma versão textual do tabuleiro, com o robo
@@ -103,12 +105,55 @@ Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
               "~a,~n~a|~n"
               uma-linha
               (apply string-append
-                     (for/list ([numero-linha (in-range (tabuleiro-y o-tabuleiro))])
+                     (for/list ([numero-linha
+                                 (in-range (tabuleiro-y o-tabuleiro))])
                        (if (and (= (robo-x o-robo) numero-coluna)
                                 (= (robo-y o-robo) numero-linha))
                            (format "|~a" (robo-direção o-robo))
                            "| "))))))))
 
+;; ler-movimentos-do-robo : input-port robo tabuleiro -> robo
+;; le e modifica a posição do robo a partir de uma lista de movimentos
+(define (ler-movimentos-do-robo arquivo
+                                (o-robo #f)
+                                (o-tabuleiro #f))
+  (let* ([linha-de-comandos (read-line arquivo 'any)])
+    (if (eof-object? linha-de-comandos)
+        o-robo
+        (let ([elementos-da-linha (string-tokenize linha-de-comandos)])
+          (case (length elementos-da-linha)
+            [(3)
+             (if (equal? (first elementos-da-linha) "T")
+                 (ler-movimentos-do-robo arquivo
+                                         (muda-posição
+                                          o-robo
+                                          (string->number (second
+                                                           elementos-da-linha))
+                                          (string->number (third
+                                                           elementos-da-linha)))
+                                         o-tabuleiro)
+                 (ler-movimentos-do-robo arquivo
+                                         (constrói-robo linha-de-comandos)
+                                         o-tabuleiro))]
+            [(2) (ler-movimentos-do-robo arquivo
+                                         o-robo
+                                         (constrói-tabuleiro linha-de-comandos))]
+            [else
+             (ler-movimentos-do-robo arquivo
+                                     ; cria um novo robo pra cada comando da linha
+                                     (string-fold
+                                      (lambda (comando velho-robo)
+                                        (if (equal? comando #\M)
+                                            (passo-a-frente velho-robo)
+                                            (muda-direção velho-robo comando)))
+                                      o-robo
+                                      linha-de-comandos)
+                                     o-tabuleiro)])))))
+
+
+;(ler-movimentos-do-robo (open-input-file
+;                         (vector-ref (current-command-line-arguments)
+;                                     0)))
 
 (provide constrói-tabuleiro
          constrói-robo
@@ -116,8 +161,6 @@ Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
          muda-direção
          muda-posição
          passo-a-frente
+         ler-movimentos-do-robo
          (struct-out tabuleiro)
          (struct-out robo))
-
-;(displayln (read-line (open-input-file (vector-ref (current-command-line-arguments) 0))))
-
