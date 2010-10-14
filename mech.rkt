@@ -39,9 +39,49 @@ Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
 (define-struct mech (x y direction) #:transparent)
 
 (define COMMAND-LOOKUP-TABLE
-  (list (list #\M (λ (mech) (printf "move mech ~a forward~n" mech)))
-        (list #\R (λ (mech) (printf "move mech ~a to the right~n" mech)))
-        (list #\L (λ (mech) (printf "move mech ~a to the left~n" mech)))))
+  `#hash((#\M . ,(λ (mech) (step-forward mech)))
+         (#\R . ,(λ (mech) (turn mech #\R)))
+         (#\L . ,(λ (mech) (turn mech #\L)))))
+
+(define STEP-CONSEQUENCE
+  `#hash((#\N . ,(list (λ (n) n) add1))
+         (#\W . ,(list sub1 (λ (n) n)))
+         (#\S . ,(list (λ (n) n) sub1))
+         (#\E . ,(list add1 (λ (n) n)))))
+
+(define TURN-CONSEQUENCE
+  #hash((#\N . (#\W #\E))
+        (#\W . (#\S #\N))
+        (#\S . (#\E #\W))
+        (#\E . (#\N #\S))))
+
+;; get-consequences : hash char -> X
+(define (get-consequences consequences key)
+  (hash-ref consequences
+            key))
+
+;; turn : mech direction -> mech
+(define (turn the-mech to-where)
+  (let ([consequences (get-consequences TURN-CONSEQUENCE
+                                        (mech-direction the-mech))])
+    (struct-copy mech the-mech
+                 (direction (if (equal? to-where #\L)
+                                (first consequences)
+                                (second consequences))))))
+
+;; step-forward : mech -> mech
+(define (step-forward the-mech)
+  (let ([consequences (get-consequences STEP-CONSEQUENCE
+                                        (mech-direction the-mech))])
+    (struct-copy mech the-mech
+                 (x ((first consequences) (mech-x the-mech)))
+                 (y ((second consequences) (mech-y the-mech))))))
+
+;; teleport : mech number number -> mech
+(define (jump the-mech x y)
+  (struct-copy mech the-mech
+               (x x)
+               (y y)))
 
 (define-tokens value-tokens (NUMBER
                              DIRECTION
@@ -69,16 +109,13 @@ Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
    ;; Returning the result of that operation.  
    ;; This effectively skips all whitespace.
    [#\space (mech-lexer input-port)]
-   [directions (token-DIRECTION (string->symbol lexeme))]
+   [directions (token-DIRECTION (string-ref lexeme 0))]
    [(:+ (:or turn-right turn-left move-forward))
     (token-COMMANDS
      (map (λ (command)
-            (second (findf (λ (table-item)
-                             (equal? command
-                                     (first table-item)))
-                           COMMAND-LOOKUP-TABLE)))
+            (get-consequences COMMAND-LOOKUP-TABLE command))
           (string->list lexeme)))]
-   [teleport (token-FUNCTION (string->symbol lexeme))]
+   [teleport (token-FUNCTION (string-ref lexeme 0))]
    [(:+ digit) (token-NUMBER (string->number lexeme))]))
 
 ;; mech-parser : (X -> token) board mech -> mech
@@ -113,21 +150,21 @@ Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
                         (make-mech $1 $2 $3))]
           
           [(FUNCTION NUMBER NUMBER)
-           (printf "teleport to ~a ~a ~n" $2 $3)]
+           (mech-parser gen
+                        board
+                        (jump mech $2 $3))]
           
           [(COMMANDS)
            (mech-parser gen
                         board
                         (foldl (λ (command old-mech)
-                                 (command old-mech)
-                                 old-mech)
-                               mech $1))])))
+                                 (command old-mech)) mech $1))])))
    gen))
 
 (define (process-mech ip)
   (mech-parser (λ () (mech-lexer ip))))
 
 
-(process-mech (open-input-string "10 9\n 0 0 N\n RL\n LLLMMRRL"))
-;(process-mech (open-input-string "10 10\n 0 0 N\n T 1 4\n LRMMM\n T 3 3"))
-
+(provide process-mech
+         (struct-out mech)
+         (struct-out board))
