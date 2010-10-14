@@ -7,3 +7,13 @@
 
 (check-equal? (process-mech (open-input-string "3 3\n1 1 N\nRMLMLMMLMM"))
               (make-mech 0 0 #\S))
+
+
+
+;; should fire a message telling me that the jump is illegal
+(test-case
+ "Verifing exceptions"
+ (check-equal? (process-mech (open-input-string "3 3\n1 1 N\nT 4 4\nR"))
+               (make-mech 1 1 #\E)))
+
+

@@ -39,9 +39,9 @@ Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
 (define-struct mech (x y direction) #:transparent)
 
 (define COMMAND-LOOKUP-TABLE
-  `#hash((#\M . ,(λ (mech) (step-forward mech)))
-         (#\R . ,(λ (mech) (turn mech #\R)))
-         (#\L . ,(λ (mech) (turn mech #\L)))))
+  `#hash((#\M . ,(λ (board mech) (step-forward board mech)))
+         (#\R . ,(λ (board mech) (turn mech #\R)))
+         (#\L . ,(λ (board mech) (turn mech #\L)))))
 
 (define STEP-CONSEQUENCE
   `#hash((#\N . ,(list (λ (n) n) add1))
@@ -69,19 +69,30 @@ Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
                                 (first consequences)
                                 (second consequences))))))
 
-;; step-forward : mech -> mech
-(define (step-forward the-mech)
+;; step-forward : board mech -> mech
+(define (step-forward the-board the-mech)
   (let ([consequences (get-consequences STEP-CONSEQUENCE
                                         (mech-direction the-mech))])
-    (struct-copy mech the-mech
-                 (x ((first consequences) (mech-x the-mech)))
-                 (y ((second consequences) (mech-y the-mech))))))
+    (jump the-board the-mech
+          ((first consequences) (mech-x the-mech))
+          ((second consequences) (mech-y the-mech)))))
 
-;; teleport : mech number number -> mech
-(define (jump the-mech x y)
-  (struct-copy mech the-mech
-               (x x)
-               (y y)))
+;; teleport : board mech number number -> mech or raise
+;; moves the mech, unless it is out of bounds in the board. Raise a string
+;; exception indicating what happened.
+(define (jump the-board the-mech x y)
+  (if (or (< x 0)
+          (> x (board-x the-board))
+          (< y 0)
+          (> y (board-y the-board)))
+      (raise
+       (format
+        "Jumped out of board.~nYour board has dimentions ~a ~a.~nYou tried to move from (~a ~a) to (~a ~a)."
+        (board-x the-board) (board-y the-board) (mech-x the-mech)
+        (mech-y the-mech) x y))
+      (struct-copy mech the-mech
+                   (x x)
+                   (y y))))
 
 (define-tokens value-tokens (NUMBER
                              DIRECTION
@@ -150,15 +161,25 @@ Assuma que, o quadrado, imediatamente ao norte de (x, y) é (x, y + 1)
                         (make-mech $1 $2 $3))]
           
           [(FUNCTION NUMBER NUMBER)
-           (mech-parser gen
-                        board
-                        (jump mech $2 $3))]
+           (with-handlers ((string? (λ (message)
+                                      (display message)
+                                      (mech-parser gen
+                                                   board
+                                                   mech))))
+             (mech-parser gen
+                          board
+                          (jump board mech $2 $3)))]
           
           [(COMMANDS)
            (mech-parser gen
                         board
-                        (foldl (λ (command old-mech)
-                                 (command old-mech)) mech $1))])))
+                        (foldl
+                         (λ (command old-mech)
+                           (with-handlers ((string? (λ (message)
+                                                      (display message)
+                                                      old-mech)))
+                             (command board old-mech)))
+                         mech $1))])))
    gen))
 
 (define (process-mech ip)
