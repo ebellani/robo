@@ -39,7 +39,7 @@ module RobotMovement
   require 'treetop'
   require 'robot_grammar'
 
-#  @grammar = Treetop.load 'robot_grammar'
+  #  @grammar = Treetop.load 'robot_grammar'
   @parser  = RobotGrammarParser.new
 
   def self.parser
@@ -47,6 +47,12 @@ module RobotMovement
   end
 
   class Robot
+    @@turn_consequences = {
+      "N" => ["W", "E"], 
+      "W" => ["S", "N"], 
+      "S" => ["E", "W"], 
+      "E" => ["N", "S"]}
+
     attr_accessor :x, :y, :direction
 
     def initialize(x, y, direction)
@@ -60,6 +66,8 @@ module RobotMovement
        self.y == another_robot.y &&
        self.direction == another_robot.direction)
     end
+
+
   end
 
   class Board
@@ -74,6 +82,22 @@ module RobotMovement
       (self.x == another_board.x &&
        self.y == another_board.y)
     end
+
+    def is_valid_move?(x, y)
+      (x <= self.x && y <= self.y)
+    end
+
+    # move_to : integer integer robot -> false or robot
+    def move_robot_to(x, y, a_robot)
+      if is_valid_move?(x, y)
+        a_robot.x = x
+        a_robot.y = y
+        a_robot
+      else
+        false
+      end
+    end
+
   end
 
 end

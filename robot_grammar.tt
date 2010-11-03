@@ -1,19 +1,55 @@
 grammar RobotGrammar do
   include RobotMovement
 
-  rule board do
-    integer_and_spaces integer {
-      def eval
-        RobotMovement::Board.new(integer_and_spaces.eval-1, integer.eval-1)
+  rule initial do
+    load_data / teleport 
+  end
+ 
+  rule teleport do
+    "T" spaces operand_1:parameter operand_2:parameter {
+      def value(a_board, a_robot)
+        a_board.move_robot_to(operand_1.value, 
+                              operand_2.value,
+                              a_robot)
+      end
+    }
+  end
+  
+  rule load_data do 
+    make_robot / make_board
+  end
+  
+  rule make_robot do
+    operand_1:parameter operand_2:parameter directions {
+      def value
+        RobotMovement::Robot.new(operand_1.value,
+                                 operand_2.value,
+                                 directions.value)
+      end
+    }
+  end
+
+  rule directions do
+    ("N" / "S" / "W" / "E") {
+      def value
+        text_value
       end
     }
   end
 
 
-  rule integer_and_spaces do
+  rule make_board do
+    operand_1:parameter operand_2:parameter {
+      def value
+        RobotMovement::Board.new(operand_1.value, operand_2.value)
+      end
+    }
+  end
+
+  rule parameter do
     integer spaces {
-      def eval
-        integer.eval
+      def value
+        integer.value
       end
     }
   end
@@ -21,13 +57,13 @@ grammar RobotGrammar do
 
   rule integer do
     [0-9]+ {
-      def eval
+      def value
         text_value.to_i
       end
     }
   end
 
   rule spaces do
-    ' '+
+    ' '*
   end
 end
