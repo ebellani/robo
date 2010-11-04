@@ -67,10 +67,23 @@ module RobotMovement
        self.direction == another_robot.direction)
     end
 
+    # turn_to : string -> robot
+    def turn_to(turn_direction)
+      possible_directions = @@turn_consequences[self.direction]
+      self.direction = (turn_direction == "L" ? possible_directions[0] : possible_directions[1])
+      self
+    end
 
   end
 
   class Board
+
+    @@step_consequences = {
+      "N" => [lambda{|n| n}, lambda{|n| n+1}], 
+      "W" => [lambda{|n| n-1}, lambda{|n| n}], 
+      "S" => [lambda{|n| n}, lambda{|n| n-1}], 
+      "E" => [lambda{|n| n+1}, lambda{|n| n}]} 
+
     attr_accessor :x, :y
     
     def initialize(x, y)
@@ -96,6 +109,14 @@ module RobotMovement
       else
         false
       end
+    end
+
+    # move_robot_forward : a_robot -> a_robot
+    def move_robot_forward(a_robot)
+      step_consequences = @@step_consequences[a_robot.direction]
+      a_robot.x = step_consequences[0].call(a_robot.x)
+      a_robot.y = step_consequences[1].call(a_robot.y)
+      a_robot
     end
 
   end

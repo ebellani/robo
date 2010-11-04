@@ -1,13 +1,52 @@
 grammar RobotGrammar do
   include RobotMovement
 
-  rule initial do
-    load_data / teleport 
+  rule unit_testing do
+    root / teleport / movement / turning / make_robot / make_board 
   end
- 
+
+  rule root do
+    make_board make_robot all_movements {
+      def value
+        the_robot = make_robot.value
+        the_board = make_board.value
+        all_movements.value(the_robot, the_board) 
+        the_robot
+      end
+    }
+  end
+
+  rule all_movements do
+    (teleport / movement / turning)* {
+      def value(a_robot, a_board)
+        elements.map {|e| 
+          e.value(a_robot, a_board) 
+        }
+        a_robot
+      end
+    } 
+  end
+
+  rule movement do
+    "M" newline {
+      def value(a_robot, a_board)
+        a_board.move_robot_forward(a_robot)
+      end
+    } 
+  end
+
+  rule turning do
+    ("L" / "R") newline {
+      def value(a_robot, a_board=nil)
+        a_robot.turn_to(text_value)
+        a_robot
+      end
+    }
+  end
+
   rule teleport do
-    "T" spaces operand_1:parameter operand_2:parameter {
-      def value(a_board, a_robot)
+    "T" spaces operand_1:parameter operand_2:parameter newline {
+      def value(a_robot, a_board)
         a_board.move_robot_to(operand_1.value, 
                               operand_2.value,
                               a_robot)
@@ -15,12 +54,8 @@ grammar RobotGrammar do
     }
   end
   
-  rule load_data do 
-    make_robot / make_board
-  end
-  
   rule make_robot do
-    operand_1:parameter operand_2:parameter directions {
+    operand_1:parameter operand_2:parameter directions newline {
       def value
         RobotMovement::Robot.new(operand_1.value,
                                  operand_2.value,
@@ -39,7 +74,7 @@ grammar RobotGrammar do
 
 
   rule make_board do
-    operand_1:parameter operand_2:parameter {
+    operand_1:parameter operand_2:parameter newline {
       def value
         RobotMovement::Board.new(operand_1.value, operand_2.value)
       end
@@ -66,4 +101,9 @@ grammar RobotGrammar do
   rule spaces do
     ' '*
   end
+
+  rule newline do
+    "\n"* 
+  end
+
 end
